@@ -5,6 +5,7 @@ from tkinter import messagebox
 from PIL import Image, ImageDraw, ImageChops
 import os
 from view.plot_view import PlotView
+import sys
 
 def round_corners(image, radius=10, bg_tolerance=30):
     """Make solid background transparent (if present) and add rounded corners.
@@ -60,11 +61,64 @@ class AppView(ctk.CTk):
         ctk.set_default_color_theme("dark-blue")
 
         # Load images for buttons with rounded corners
-        base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        edit_pil_img = round_corners(Image.open(os.path.join(base_path, "images", "edit.jpg")), radius=8)
-        delete_pil_img = round_corners(Image.open(os.path.join(base_path, "images", "delete.jpg")), radius=8)
-        self.edit_img = CTkImage(edit_pil_img, size=(40, 40))
-        self.delete_img = CTkImage(delete_pil_img, size=(40, 40))
+        # Resolve image paths in multiple environments (dev, packaged via PyInstaller)
+        def _resolve_image_path(filename):
+            base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            name, ext = os.path.splitext(filename)
+            exts = [ext] if ext else [".jpg", ".png"]
+            candidates = []
+            for e in exts:
+                candidates.append(os.path.join(base_path, "images", name + e))
+            # PyInstaller adds a _MEIPASS attribute when frozen
+            if getattr(sys, "frozen", False):
+                meipass = getattr(sys, "_MEIPASS", None)
+                if meipass:
+                    for e in exts:
+                        candidates.append(os.path.join(meipass, "images", name + e))
+            # also check working dir
+            for e in exts:
+                candidates.append(os.path.join(os.getcwd(), "images", name + e))
+
+            for p in candidates:
+                if os.path.exists(p):
+                    return p
+            return None
+
+        def _load_icon(filename, radius=8, size=(40, 40)):
+            path = _resolve_image_path(filename)
+            if path:
+                try:
+                    pil = Image.open(path).convert("RGBA")
+                    # Resize to the requested size to ensure consistent display
+                    # Choose a high-quality resampling filter in a way that
+                    # doesn't trigger static analyser warnings across Pillow
+                    # versions. Use `hasattr`/`getattr` so Pylance won't report
+                    # unknown attributes like `ANTIALIAS` on some installations.
+                    if hasattr(Image, 'Resampling'):
+                        resample = Image.Resampling.LANCZOS
+                    elif hasattr(Image, 'LANCZOS'):
+                        resample = getattr(Image, 'LANCZOS')
+                    elif hasattr(Image, 'ANTIALIAS'):
+                        resample = getattr(Image, 'ANTIALIAS')
+                    elif hasattr(Image, 'BICUBIC'):
+                        resample = getattr(Image, 'BICUBIC')
+                    else:
+                        resample = None
+                    pil = pil.resize(size, resample)
+                    print(f"Loaded icon from: {path}")
+                    return round_corners(pil, radius=radius)
+                except Exception:
+                    # fall through to placeholder
+                    print(f"Failed to open icon: {path}")
+                    pass
+            # placeholder image if file missing or broken
+            placeholder = Image.new("RGBA", size, (80, 80, 80, 255))
+            print(f"Using placeholder for: {filename}")
+            return round_corners(placeholder, radius=radius)
+
+        # Request icons by base name (no extension) so loader will try .png and .jpg
+        self.edit_img = CTkImage(_load_icon("edit"), size=(40, 40))
+        self.delete_img = CTkImage(_load_icon("delete"), size=(40, 40))
 
         # Scrollable area
         self.scrollable_frame = ctk.CTkScrollableFrame(self)

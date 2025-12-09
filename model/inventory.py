@@ -1,17 +1,38 @@
 # model/inventory.py
 from typing import List
-from .base import BaseDevice
+from .devices import Device
+from .db import get_session, init_db
+init_db()  # ensures tables exist
+
 
 class InventoryModel:
     def __init__(self):
-        self.items: List[BaseDevice] = []
+        pass
 
-    def add(self, device: BaseDevice):
-        self.items.append(device)
+    def add(self, device: Device):
+        """Persist a device to the DB."""
+        session = get_session()
+        try:
+            session.add(device)
+            session.commit()
+            session.refresh(device)
+            return device
+        finally:
+            session.close()
 
-    def remove(self, device: BaseDevice):
-        if device in self.items:
-            self.items.remove(device)
+    def remove(self, device: Device):
+        session = get_session()
+        try:
+            obj = session.query(Device).get(device.id)
+            if obj:
+                session.delete(obj)
+                session.commit()
+        finally:
+            session.close()
 
-    def all(self):
-        return list(self.items)
+    def all(self) -> List[Device]:
+        session = get_session()
+        try:
+            return session.query(Device).all()
+        finally:
+            session.close()

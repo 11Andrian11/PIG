@@ -1,14 +1,20 @@
 # presenter/inventory_presenter.py
 from model.devices import Device
+from model.inventory import InventoryModel
 from view.app_view import AppView
 from view.plot_view import PlotView
 import random
-import string
+
 
 class InventoryPresenter:
     def __init__(self):
-        self.devices = []  
+        self.inventory = InventoryModel()
         self.view = AppView(self)
+
+    @property
+    def devices(self):
+        """Return current list of devices (keeps compatibility with previous code)."""
+        return self.inventory.all()
 
     # accept a dictionary from the popup
     def add_device(self, kwargs):
@@ -20,39 +26,45 @@ class InventoryPresenter:
                 videocart_type=kwargs["videocard_type"],
                 price=kwargs["price"]
             )
-            self.devices.append(device)
-            self.view.refresh_frames(self.devices)
+            saved = self.inventory.add(device)
+            devices = self.inventory.all()
+            self.view.refresh_frames(devices)
         except Exception as e:
             self.view.show_error(f"Failed to add device: {e}")
 
     def edit_device(self, device, kwargs):
         try:
-            if device not in self.devices:
-                raise ValueError("Device not found")
-
+            # update fields
             device.name = kwargs.get("name", device.name)
             device.model = kwargs.get("model", device.model)
             device.category = kwargs.get("category", device.category)
             device.videocard_type = kwargs.get("videocard_type", device.videocard_type)
             device.price = float(kwargs.get("price", device.price))
 
-            self.view.refresh_frames(self.devices)
+            # persist changes
+            # Re-use InventoryModel's add (session.add will merge/attach)
+            self.inventory.add(device)
+            devices = self.inventory.all()
+            self.view.refresh_frames(devices)
         except Exception as e:
             self.view.show_error(f"Failed to edit device: {e}")
 
     def delete_device(self, device):
-        if device in self.devices:
-            self.devices.remove(device)
-            self.view.refresh_frames(self.devices)
-    
+        try:
+            self.inventory.remove(device)
+            devices = self.inventory.all()
+            self.view.refresh_frames(devices)
+        except Exception as e:
+            self.view.show_error(f"Failed to delete device: {e}")
+
     def generate_random_devices(self, count=5):
-        """Generate random devices with different values."""
+        """Generate random devices with different values and persist them."""
         device_names = [
             "Dell XPS", "HP Pavilion", "Lenovo ThinkPad", "ASUS VivoBook", "MacBook Pro",
             "Samsung Galaxy Tab", "iPad Air", "Surface Pro", "Razer Blade", "MSI GS66"
         ]
         models = [
-            "13", "14", "15", "16", "17", "Pro", "Max", "Plus", "Ultra", "Gaming"
+            "13", "14", "15", "16", "Pro", "Max", "Plus", "Ultra", "Gaming"
         ]
         categories = ["Laptop", "Tablet", "PC"]
         videocards = [
@@ -71,4 +83,7 @@ class InventoryPresenter:
             self.add_device(kwargs)
 
     def run(self):
+        # populate view with current DB items
+        devices = self.inventory.all()
+        self.view.refresh_frames(devices)
         self.view.mainloop()
