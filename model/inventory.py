@@ -1,17 +1,25 @@
-# model/inventory.py
-from typing import List
+from typing import List, Optional
 from .base import BaseDevice
 
 class InventoryModel:
     def __init__(self):
         self.items: List[BaseDevice] = []
 
-    def add(self, device: BaseDevice):
-        self.items.append(device)
+    def add(self, dev: BaseDevice) -> None:
+        self.items.append(dev)
 
-    def remove(self, device: BaseDevice):
-        if device in self.items:
-            self.items.remove(device)
+    def remove_index(self, idx: int) -> None:
+        if 0 <= idx < len(self.items):
+            self.items.pop(idx)
 
-    def all(self):
+    def set_index(self, idx: int, dev: BaseDevice) -> None:
+        if 0 <= idx < len(self.items):
+            self.items[idx] = dev
+
+    def get_index(self, idx: int) -> Optional[BaseDevice]:
+        if 0 <= idx < len(self.items):
+            return self.items[idx]
+        return None
+
+    def all(self) -> List[BaseDevice]:
         return list(self.items)
