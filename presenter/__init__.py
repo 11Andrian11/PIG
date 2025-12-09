@@ -1,0 +1,1 @@
+from .inventory_presenter import InventoryPresenter
