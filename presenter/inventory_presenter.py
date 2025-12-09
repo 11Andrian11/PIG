@@ -1,6 +1,9 @@
 # presenter/inventory_presenter.py
 from model.devices import Device
 from view.app_view import AppView
+from view.plot_view import PlotView
+import random
+import string
 
 class InventoryPresenter:
     def __init__(self):
@@ -41,6 +44,31 @@ class InventoryPresenter:
         if device in self.devices:
             self.devices.remove(device)
             self.view.refresh_frames(self.devices)
+    
+    def generate_random_devices(self, count=5):
+        """Generate random devices with different values."""
+        device_names = [
+            "Dell XPS", "HP Pavilion", "Lenovo ThinkPad", "ASUS VivoBook", "MacBook Pro",
+            "Samsung Galaxy Tab", "iPad Air", "Surface Pro", "Razer Blade", "MSI GS66"
+        ]
+        models = [
+            "13", "14", "15", "16", "17", "Pro", "Max", "Plus", "Ultra", "Gaming"
+        ]
+        categories = ["Laptop", "Tablet", "PC"]
+        videocards = [
+            "NVIDIA GTX 1050", "NVIDIA RTX 3050", "NVIDIA RTX 3060", "AMD Radeon RX 5500",
+            "Intel Iris Xe", "NVIDIA GTX 1080", "NVIDIA RTX 4060", "AMD Radeon RX 6600"
+        ]
+        
+        for i in range(count):
+            kwargs = {
+                "name": f"{random.choice(device_names)} {i+1}",
+                "model": random.choice(models),
+                "category": random.choice(categories),
+                "videocard_type": random.choice(videocards),
+                "price": str(round(random.uniform(500, 3000), 2))
+            }
+            self.add_device(kwargs)
 
     def run(self):
         self.view.mainloop()
